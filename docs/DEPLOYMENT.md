@@ -74,12 +74,12 @@ make prod
 
 1. Check services are running:
    ```bash
-   docker compose -f docker-compose.yaml -f docker-compose.prod.yaml ps
+   docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml ps
    ```
 
 2. Check Caddy logs:
    ```bash
-   docker compose -f docker-compose.yaml -f docker-compose.prod.yaml logs webserver
+   docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml logs webserver
    ```
 
 3. Access http://YOUR_EC2_IP_ADDRESS
@@ -119,7 +119,7 @@ Ensure your EC2 security group allows:
 ```bash
 cd ~/openweb
 git pull origin main
-docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --pull always --build
+docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --pull always --build
 docker image prune -f
 ```
 
@@ -168,10 +168,10 @@ docker run --rm -v openweb_open-webui-data:/data -v "$BACKUP_DIR":/backup alpine
 
 ```bash
 # Check service
-docker compose -f docker-compose.yaml -f docker-compose.prod.yaml ps
+docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml ps
 
 # Check logs
-docker compose -f docker-compose.yaml -f docker-compose.prod.yaml logs open-webui
+docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml logs open-webui
 ```
 
 ## Support

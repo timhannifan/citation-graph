@@ -21,9 +21,9 @@ cd ~/openweb
 git fetch origin
 git checkout $BRANCH
 git pull origin $BRANCH
-docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --pull always --build
+docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --pull always --build
 docker image prune -f
-docker compose -f docker-compose.yaml -f docker-compose.prod.yaml ps
+docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml ps
 EOF
 
 echo "=== Deployment complete! ==="

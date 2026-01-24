@@ -17,5 +17,5 @@ jobs:
           script: |
             cd ~/openweb
             git pull origin main
-            docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --pull always --build
+            docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --pull always --build
             docker image prune -f
