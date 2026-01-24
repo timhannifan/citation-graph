@@ -39,7 +39,7 @@ make prod
 ### 1. Server Setup (Amazon Linux 2023)
 
 ```bash
-# Run the setup script
+# Run the setup script (installs Docker, Docker Compose, and Git)
 ./scripts/setup-ec2-docker.sh
 
 # Log out and back in for docker group

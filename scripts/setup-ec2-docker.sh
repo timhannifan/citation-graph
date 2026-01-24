@@ -6,6 +6,10 @@ set -e
 
 echo "=== Installing Docker on EC2 Amazon Linux 2023 ==="
 
+# Install Git (if not already installed)
+echo "Installing Git..."
+sudo yum install -y git
+
 # Install Docker from Amazon Linux repos (this works!)
 echo "Installing Docker from Amazon Linux repos..."
 sudo yum install -y docker
@@ -37,6 +41,7 @@ chmod +x ~/.docker/cli-plugins/docker-buildx
 # Verify installations
 echo ""
 echo "=== Verifying installations ==="
+git --version
 docker --version
 docker-compose --version
 docker buildx version
