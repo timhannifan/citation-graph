@@ -1,0 +1,14 @@
+# Local development overrides
+# Auto-loaded when running: docker compose up
+
+services:
+  open-webui:
+    ports:
+      - "3000:8080"  # Access at http://localhost:3000
+    environment:
+      WEBUI_BASE_URL: http://localhost:3000
+      WEBUI_URL: http://localhost:3000
+      WEBUI_CSRF_TRUSTED_ORIGINS: http://localhost:3000
+      CORS_ALLOW_ORIGINS: http://localhost:3000
+      WEBUI_SESSION_COOKIE_SECURE: "false"
+      WEBUI_AUTH_COOKIE_SECURE: "false"

@@ -1,0 +1,28 @@
+# Caddy data (SSL certificates, config)
+caddy_data/
+
+# Input data (deployment-specific)
+data/
+
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

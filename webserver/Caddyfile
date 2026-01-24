@@ -1,0 +1,71 @@
+# Production configuration for IP-based access (HTTP only)
+# Note: HTTPS requires a domain name for SSL certificates
+:80 {
+	encode gzip
+
+	# Handle CORS preflight requests
+	@options method OPTIONS
+	handle @options {
+		header Access-Control-Allow-Origin "*"
+		header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+		header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+		header Access-Control-Allow-Credentials "true"
+		respond 204
+	}
+
+	# OpenWebUI API endpoints - match /api/v1/* paths
+	@openwebui_api {
+		path_regexp ^/api/v1/
+	}
+	handle @openwebui_api {
+		reverse_proxy open-webui:8080 {
+			header_up Host {host}
+			header_up X-Real-IP {remote}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-For {remote_host}
+
+			header_down Access-Control-Allow-Origin "*"
+			header_down Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+			header_down Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+			header_down Access-Control-Allow-Credentials "true"
+		}
+	}
+
+	# Handle JavaScript files separately to set correct MIME type
+	@js_files {
+		path *.js *.mjs
+	}
+	handle @js_files {
+		reverse_proxy open-webui:8080 {
+			header_up Host {host}
+			header_up X-Real-IP {remote}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-For {remote_host}
+
+			# Set correct Content-Type for JS files
+			header_down Content-Type "application/javascript; charset=utf-8"
+
+			# Add CORS headers
+			header_down Access-Control-Allow-Origin "*"
+			header_down Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+			header_down Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+			header_down Access-Control-Allow-Credentials "true"
+		}
+	}
+
+	# OpenWebUI interface - catch-all for everything else
+	handle {
+		reverse_proxy open-webui:8080 {
+			header_up Host {host}
+			header_up X-Real-IP {remote}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-For {remote_host}
+
+			# Add CORS headers to responses
+			header_down Access-Control-Allow-Origin "*"
+			header_down Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+			header_down Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+			header_down Access-Control-Allow-Credentials "true"
+		}
+	}
+}

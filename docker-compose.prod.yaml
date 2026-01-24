@@ -1,0 +1,32 @@
+# Production overrides
+# Usage: docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d
+
+services:
+  open-webui:
+    expose:
+      - "8080"  # Internal only, accessed via Caddy
+    environment:
+      WEBUI_BASE_URL: ${WEBUI_BASE_URL:-http://localhost}
+      WEBUI_URL: ${WEBUI_URL:-http://localhost}
+      WEBUI_CSRF_TRUSTED_ORIGINS: ${WEBUI_CSRF_TRUSTED_ORIGINS:-http://localhost}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost}
+      WEBUI_SESSION_COOKIE_SECURE: "false"
+      WEBUI_AUTH_COOKIE_SECURE: "false"
+
+  webserver:
+    build:
+      context: ./webserver
+      dockerfile: Caddy.Dockerfile
+    ports:
+      - "80:80"
+    volumes:
+      - ./caddy_data:/data
+      - ./caddy_data:/config
+      - ./webserver/Caddyfile:/etc/caddy/Caddyfile:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    restart: always
+    depends_on:
+      - open-webui

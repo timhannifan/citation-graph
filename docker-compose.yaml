@@ -1,0 +1,20 @@
+# Base configuration - shared between local and production
+# Local dev: docker compose up (auto-loads docker-compose.override.yaml)
+# Production: docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d
+
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:latest
+    volumes:
+      - open-webui-data:/app/backend/data
+    environment:
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:-your-secret-key-change-this}
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1.5G
+    restart: unless-stopped
+
+volumes:
+  open-webui-data:
