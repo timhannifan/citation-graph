@@ -23,3 +23,29 @@ services:
     environment:
       MCP_SERVER_HOST: "0.0.0.0"
       MCP_SERVER_PORT: "8090"
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8090' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  mcpo:
+    image: ghcr.io/open-webui/mcpo:main
+    ports:
+      - "8000:8000"
+    environment:
+      MCPO_API_KEY: ${MCPO_API_KEY:-dev-api-key}
+    command:
+      - "--port"
+      - "8000"
+      - "--api-key"
+      - "${MCPO_API_KEY:-dev-api-key}"
+      - "--server-type"
+      - "streamable-http"
+      - "--"
+      - "http://mcp-server:8090/mcp"
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+    restart: on-failure

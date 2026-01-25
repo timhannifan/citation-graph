@@ -28,7 +28,38 @@ services:
         limits:
           cpus: '0.5'
           memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/8090' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     restart: always
+
+  mcpo:
+    image: ghcr.io/open-webui/mcpo:main
+    ports:
+      - "8000:8000"
+    environment:
+      MCPO_API_KEY: ${MCPO_API_KEY:-dev-api-key}
+    command:
+      - "--port"
+      - "8000"
+      - "--api-key"
+      - "${MCPO_API_KEY:-dev-api-key}"
+      - "--server-type"
+      - "streamable-http"
+      - "--"
+      - "http://mcp-server:8090/mcp"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+    restart: on-failure
 
   webserver:
     build:

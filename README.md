@@ -4,11 +4,10 @@ An OpenWebUI starter.
 
 ## Features
 
-- **Web UI**: OpenWebUI interface for interactive document querying
-- **Document Upload**: Upload PDFs and documents directly in the UI
-- **RAG**: Built-in vector search and retrieval
-- **LLM Integration**: Connect to any LLM via OpenRouter
-- **MCP Server**: Model Context Protocol server with extensible tools
+- **OpenWebUI Ready**: Pre-configured OpenWebUI setup ready for document assistance and chat
+- **FastMCP Server Integration**: Demonstrates how to integrate a FastMCP server alongside OpenWebUI
+- **MCP-to-OpenAPI Proxy**: Shows how to expose MCP tools as REST APIs using mcpo
+- **Production Deployment**: Includes Docker Compose setup with Caddy reverse proxy for EC2 deployment
 
 ## Quick Start
 
@@ -50,11 +49,40 @@ An OpenWebUI starter.
    - Attach your knowledge base to the model
    - Save
 
-7. **Start Querying**
+7. **Setup Tool Integration (Optional)**
+
+   **Option A: Direct MCP Server (Recommended)**
+   
+   - Go to **Admin Settings** → **External Tools**
+   - Under **Manage Tool Servers**, click **Add Connection**
+   - Set:
+     - **URL**: `http://host.docker.internal:8090/mcp` (use `host.docker.internal` for Admin Settings)
+     - **Auth**: `None` (no authentication required for direct MCP)
+   - Save
+   - In a chat, click the **Integrations** icon (below the text input area)
+   - Find your tools and turn them on
+   - Tools are now available in chat
+
+   **Option B: Via mcpo Proxy (REST API)**
+   
+   - Go to **Admin Settings** → **External Tools**
+   - Under **Manage Tool Servers**, click **Add Connection**
+   - Set:
+     - **URL**: `http://host.docker.internal:8000` (use `host.docker.internal` for Admin Settings)
+     - **Auth**: `Bearer`
+     - **Bearer Token**: Your `MCPO_API_KEY` from `.env` (defaults to `dev-api-key` for local dev)
+   - Save
+   - In a chat, click the **Integrations** icon (below the text input area)
+   - Find your tools and turn them on
+   - Tools are now available in chat
+   - Note: This uses the REST/OpenAPI proxy, not direct MCP protocol
+
+8. **Start Querying**
 
    - Start a new chat
    - Select the model you created above
    - Ask questions about your documents
+   - Use integrated tools if enabled
 
 ## Available Commands
 
@@ -103,17 +131,15 @@ Quick overview:
 
 Access via `http://YOUR_EC2_IP_ADDRESS`
 
-## MCP Server
+## MCP Server Integration
 
-An integrated Model Context Protocol (MCP) server runs alongside OpenWebUI, providing extensible tools for enhanced functionality.
+This project demonstrates how to integrate a FastMCP server with OpenWebUI and expose it as a REST API using mcpo (MCP-to-OpenAPI proxy).
 
-**Available Tools:**
-- **greet**: Multi-language greetings
-- **calculate**: Basic math operations  
-- **get_info**: Server information (time, date, status)
+- **FastMCP Server** (`mcp-server`): Implements MCP tools using FastMCP 3.0 on port 8090
+- **mcpo Proxy** (`mcpo`): Exposes MCP tools as REST/OpenAPI endpoints on port 8000
 
 **Access:**
-- MCP endpoint: `http://localhost:8090/mcp` (local dev)
-- From containers: `http://mcp-server:8090/mcp`
+- **MCP endpoint**: `http://localhost:8090/mcp` (direct MCP protocol)
+- **OpenAPI proxy**: `http://localhost:8000` (REST API with Swagger docs at `/docs`)
 
-See [mcp-server/README.md](mcp-server/README.md) for more details on extending the MCP server with custom tools.
+See [mcp-server/README.md](mcp-server/README.md) for details on extending the MCP server with custom tools.
