@@ -12,6 +12,23 @@ services:
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost}
       WEBUI_SESSION_COOKIE_SECURE: "false"
       WEBUI_AUTH_COOKIE_SECURE: "false"
+      MCP_SERVER_URL: "http://mcp-server:8090/mcp"
+
+  mcp-server:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+    environment:
+      MCP_SERVER_HOST: "0.0.0.0"
+      MCP_SERVER_PORT: "8090"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    restart: always
 
   webserver:
     build:
@@ -30,3 +47,4 @@ services:
     restart: always
     depends_on:
       - open-webui
+      - mcp-server

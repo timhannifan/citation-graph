@@ -8,6 +8,7 @@ An OpenWebUI starter.
 - **Document Upload**: Upload PDFs and documents directly in the UI
 - **RAG**: Built-in vector search and retrieval
 - **LLM Integration**: Connect to any LLM via OpenRouter
+- **MCP Server**: Model Context Protocol server with extensible tools
 
 ## Quick Start
 
@@ -77,6 +78,10 @@ openweb/
 ├── docker-compose.yaml         # Base configuration
 ├── docker-compose.override.yaml # Local dev overrides
 ├── docker-compose.prod.yaml    # Production with Caddy
+├── mcp-server/                 # MCP server for extensible tools
+│   ├── server.py              # FastMCP server implementation
+│   ├── Dockerfile             # MCP server container
+│   └── README.md              # MCP server documentation
 ├── webserver/                  # Caddy reverse proxy
 │   ├── Caddyfile              # Production config
 │   └── Caddy.Dockerfile
@@ -97,3 +102,18 @@ Quick overview:
 3. Run `make prod`
 
 Access via `http://YOUR_EC2_IP_ADDRESS`
+
+## MCP Server
+
+An integrated Model Context Protocol (MCP) server runs alongside OpenWebUI, providing extensible tools for enhanced functionality.
+
+**Available Tools:**
+- **greet**: Multi-language greetings
+- **calculate**: Basic math operations  
+- **get_info**: Server information (time, date, status)
+
+**Access:**
+- MCP endpoint: `http://localhost:8090/mcp` (local dev)
+- From containers: `http://mcp-server:8090/mcp`
+
+See [mcp-server/README.md](mcp-server/README.md) for more details on extending the MCP server with custom tools.

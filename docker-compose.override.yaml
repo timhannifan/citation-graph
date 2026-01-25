@@ -1,5 +1,5 @@
 # Local development overrides
-# Auto-loaded when running: docker compose up
+# Auto-loaded when running: docker-compose up
 
 services:
   open-webui:
@@ -12,3 +12,14 @@ services:
       CORS_ALLOW_ORIGINS: http://localhost:3000
       WEBUI_SESSION_COOKIE_SECURE: "false"
       WEBUI_AUTH_COOKIE_SECURE: "false"
+      MCP_SERVER_URL: "http://mcp-server:8090/mcp"
+
+  mcp-server:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+    environment:
+      MCP_SERVER_HOST: "0.0.0.0"
+      MCP_SERVER_PORT: "8090"

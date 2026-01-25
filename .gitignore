@@ -16,6 +16,11 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+*.pyc
+.venv/
+venv/
+uv.lock
+.ruff_cache/
 
 # IDE
 .vscode/

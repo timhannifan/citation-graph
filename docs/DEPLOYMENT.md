@@ -17,7 +17,7 @@ Deploy OpenWebUI to a production server on EC2.
 
 **Recommended instance**: `t3a.small` (2 vCPU, 2GB RAM, ~$13/mo)
 
-Based on container limits: OpenWebUI (1.5 CPU, 1.5GB) + Caddy (256MB)
+Based on container limits: OpenWebUI (1.5 CPU, 1.5GB) + MCP Server (0.5 CPU, 256MB) + Caddy (256MB)
 
 ## Quick Deploy
 
@@ -83,6 +83,11 @@ make prod
    ```
 
 3. Access http://YOUR_EC2_IP_ADDRESS
+
+**Services running:**
+- OpenWebUI: Main web interface
+- MCP Server: Tool server at port 8090
+- Caddy: Reverse proxy handling HTTP traffic
 
 ### 5. Configure OpenRouter
 
