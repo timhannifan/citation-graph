@@ -1,6 +1,10 @@
 # Production configuration for IP-based access (HTTP only)
 # Note: HTTPS requires a domain name for SSL certificates
 :80 {
+	log {
+		output stdout
+		format console
+	}
 	encode gzip
 
 	# Handle CORS preflight requests
@@ -32,8 +36,9 @@
 	}
 
 	# MCP Server endpoint - proxy to mcp-server
+	# Use path_regexp to match /mcp but NOT /mcpo
 	@mcp_server {
-		path_regexp ^/mcp
+		path_regexp ^/mcp($|/)
 	}
 	handle @mcp_server {
 		reverse_proxy mcp-server:8090 {
@@ -51,12 +56,8 @@
 	}
 
 	# MCPO (MCP-to-OpenAPI proxy) endpoint - proxy to mcpo
-	# Strip /mcpo prefix before forwarding to mcpo (which serves at root /)
-	@mcpo {
-		path_regexp ^/mcpo
-	}
-	handle @mcpo {
-		uri strip_prefix /mcpo
+	# handle_path automatically strips /mcpo prefix before forwarding
+	handle_path /mcpo/* {
 		reverse_proxy mcpo:8000 {
 			header_up Host {host}
 			header_up X-Real-IP {remote}
@@ -69,6 +70,10 @@
 			header_down Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
 			header_down Access-Control-Allow-Credentials "true"
 		}
+	}
+	# Handle /mcpo exactly - redirect to /mcpo/
+	handle /mcpo {
+		redir /mcpo/ permanent
 	}
 
 	# Handle JavaScript files separately to set correct MIME type
