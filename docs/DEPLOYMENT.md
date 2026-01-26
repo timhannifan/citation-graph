@@ -48,21 +48,37 @@ exit
 
 ### 2. Configure Environment
 
+**Find your EC2 public IP address:**
+- In AWS Console: EC2 → Instances → Select your instance → Check "Public IPv4 address"
+- Or run on your EC2 instance: `curl -s http://169.254.169.254/latest/meta-data/public-ipv4`
+
 Edit `.env` with your EC2 public IP address:
 
 ```bash
+# OpenWebUI configuration
 WEBUI_SECRET_KEY=your-random-secret-key-here
+
+# Server configuration (replace YOUR_EC2_IP_ADDRESS with your actual EC2 public IP)
 SERVER_IP=YOUR_EC2_IP_ADDRESS
 WEBUI_BASE_URL=http://YOUR_EC2_IP_ADDRESS
 WEBUI_URL=http://YOUR_EC2_IP_ADDRESS
 WEBUI_CSRF_TRUSTED_ORIGINS=http://YOUR_EC2_IP_ADDRESS
 CORS_ALLOW_ORIGINS=http://YOUR_EC2_IP_ADDRESS
+
+# MCPO API Key (for OpenAPI proxy authentication)
+# Change from default for production security
+MCPO_API_KEY=your-secure-api-key-here
 ```
 
-Generate a secret key:
+**Generate a secret key:**
 ```bash
 openssl rand -hex 32
 ```
+
+**Important Notes:**
+- Replace `YOUR_EC2_IP_ADDRESS` with your actual EC2 public IP address in all URL fields
+- The `WEBUI_SECRET_KEY` is required and should be a secure random string
+- The `MCPO_API_KEY` is used for authenticating with the mcpo proxy (see step 6). If you don't plan to use mcpo, you can leave it as `dev-api-key`, but it's recommended to change it for production
 
 ### 3. Deploy
 
@@ -99,6 +115,41 @@ After accessing OpenWebUI:
    - **URL**: `https://openrouter.ai/api/v1`
    - **API Key**: Your OpenRouter API key
 4. Save
+
+### 6. Configure Tool Server (Optional)
+
+To enable MCP tools in OpenWebUI, choose one of the following options:
+
+**Option A: Direct MCP Server**
+
+1. Go to **Admin Settings** → **External Tools**
+2. Under **Manage Tool Servers**, click **Add Connection**
+3. Set:
+   - **URL**: `http://YOUR_EC2_IP_ADDRESS/mcp` (replace with your actual EC2 IP)
+   - **Auth**: `None` (no authentication required)
+4. Save
+5. In a chat, click the **Integrations** icon (below the text input area)
+6. Find your tools and turn them on
+7. Tools are now available in chat
+
+**Option B: Via mcpo Proxy (REST API)**
+
+1. Go to **Admin Settings** → **External Tools**
+2. Under **Manage Tool Servers**, click **Add Connection**
+3. Set:
+   - **URL**: `http://YOUR_EC2_IP_ADDRESS/mcpo` (replace with your actual EC2 IP)
+   - **Auth**: `Bearer`
+   - **Bearer Token**: Your `MCPO_API_KEY` from `.env` (defaults to `dev-api-key`)
+4. Save
+5. In a chat, click the **Integrations** icon (below the text input area)
+6. Find your tools and turn them on
+7. Tools are now available in chat
+8. Access Swagger docs at `http://YOUR_EC2_IP_ADDRESS/mcpo/docs`
+
+**Note**: 
+- The MCP server is exposed through Caddy at `/mcp`
+- The mcpo proxy is exposed through Caddy at `/mcpo`
+- Use your EC2 public IP address (not `localhost`, `host.docker.internal`, or direct ports)
 
 ## Security Notes
 

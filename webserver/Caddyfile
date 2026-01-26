@@ -31,6 +31,44 @@
 		}
 	}
 
+	# MCP Server endpoint - proxy to mcp-server
+	@mcp_server {
+		path_regexp ^/mcp
+	}
+	handle @mcp_server {
+		reverse_proxy mcp-server:8090 {
+			header_up Host {host}
+			header_up X-Real-IP {remote}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-For {remote_host}
+
+			# Add CORS headers
+			header_down Access-Control-Allow-Origin "*"
+			header_down Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+			header_down Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+			header_down Access-Control-Allow-Credentials "true"
+		}
+	}
+
+	# MCPO (MCP-to-OpenAPI proxy) endpoint - proxy to mcpo
+	@mcpo {
+		path_regexp ^/mcpo
+	}
+	handle @mcpo {
+		reverse_proxy mcpo:8000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-For {remote_host}
+
+			# Add CORS headers
+			header_down Access-Control-Allow-Origin "*"
+			header_down Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+			header_down Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+			header_down Access-Control-Allow-Credentials "true"
+		}
+	}
+
 	# Handle JavaScript files separately to set correct MIME type
 	@js_files {
 		path *.js *.mjs

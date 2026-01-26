@@ -50,13 +50,13 @@ An OpenWebUI starter.
    - Save
 
 7. **Setup Tool Integration (Optional)**
-
+   
    **Option A: Direct MCP Server**
    
    - Go to **Admin Settings** → **External Tools**
    - Under **Manage Tool Servers**, click **Add Connection**
    - Set:
-     - **URL**: `http://host.docker.internal:8090/mcp` (use `host.docker.internal` for Admin Settings)
+     - **URL**: `http://host.docker.internal:8090/mcp` (use `host.docker.internal` for local dev)
      - **Auth**: `None` (no authentication required for direct MCP)
    - Save
    - In a chat, click the **Integrations** icon (below the text input area)
@@ -68,7 +68,7 @@ An OpenWebUI starter.
    - Go to **Admin Settings** → **External Tools**
    - Under **Manage Tool Servers**, click **Add Connection**
    - Set:
-     - **URL**: `http://host.docker.internal:8000` (use `host.docker.internal` for Admin Settings)
+     - **URL**: `http://host.docker.internal:8000` (use `host.docker.internal` for local dev)
      - **Auth**: `Bearer`
      - **Bearer Token**: Your `MCPO_API_KEY` from `.env` (defaults to `dev-api-key` for local dev)
    - Save
@@ -76,6 +76,9 @@ An OpenWebUI starter.
    - Find your tools and turn them on
    - Tools are now available in chat
    - Note: This uses the REST/OpenAPI proxy, not direct MCP protocol
+   - Access Swagger docs at `http://localhost:8000/docs`
+
+   For production deployment, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 8. **Start Querying**
 
@@ -123,13 +126,6 @@ openweb/
 ## Production Deployment
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full production deployment instructions.
-
-Quick overview:
-1. Set up your EC2 instance
-2. Update `.env` with your EC2 public IP address
-3. Run `make prod`
-
-Access via `http://YOUR_EC2_IP_ADDRESS`
 
 ## MCP Server Integration
 
