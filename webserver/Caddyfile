@@ -51,10 +51,12 @@
 	}
 
 	# MCPO (MCP-to-OpenAPI proxy) endpoint - proxy to mcpo
+	# Strip /mcpo prefix before forwarding to mcpo (which serves at root /)
 	@mcpo {
 		path_regexp ^/mcpo
 	}
 	handle @mcpo {
+		uri strip_prefix /mcpo
 		reverse_proxy mcpo:8000 {
 			header_up Host {host}
 			header_up X-Real-IP {remote}
