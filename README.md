@@ -51,7 +51,7 @@ An OpenWebUI starter.
 
 7. **Setup Tool Integration (Optional)**
 
-   **Option A: Direct MCP Server (Recommended)**
+   **Option A: Direct MCP Server**
    
    - Go to **Admin Settings** → **External Tools**
    - Under **Manage Tool Servers**, click **Add Connection**
