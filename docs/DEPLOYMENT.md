@@ -23,8 +23,8 @@ Based on container limits: OpenWebUI (1.5 CPU, 1.5GB) + MCP Server (0.5 CPU, 256
 
 ```bash
 # On your server
-git clone <repo-url> openweb
-cd openweb
+git clone <repo-url> mcpkit
+cd mcpkit
 
 # Configure
 cp env.example .env
@@ -103,6 +103,7 @@ make prod
 **Services running:**
 - OpenWebUI: Main web interface
 - MCP Server: Tool server at port 8090
+- Neo4j: Graph DB for citation demo (bolt 7687)
 - Caddy: Reverse proxy handling HTTP traffic
 
 ### 5. Configure OpenRouter
@@ -146,10 +147,12 @@ To enable MCP tools in OpenWebUI, choose one of the following options:
 7. Tools are now available in chat
 8. Access Swagger docs at `http://YOUR_EC2_IP_ADDRESS/mcpo/docs`
 
-**Note**: 
+**Note**:
 - The MCP server is exposed through Caddy at `/mcp`
 - The mcpo proxy is exposed through Caddy at `/mcpo`
 - Use your EC2 public IP address (not `localhost`, `host.docker.internal`, or direct ports)
+
+Neo4j citation demo tools are available when Neo4j is running and configured; see [Neo4j Citation Demo](NEO4J_DEMO.md) for Quick start, tool list, and env vars.
 
 ## Security Notes
 
@@ -173,7 +176,7 @@ Ensure your EC2 security group allows:
 ### Manual Update
 
 ```bash
-cd ~/openweb
+cd ~/mcpkit
 git pull origin main
 docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --pull always --build
 docker image prune -f
@@ -211,11 +214,11 @@ The workflow will:
 
 ```bash
 # Backup OpenWebUI data
-# Note: Volume name is based on your directory name (e.g., openweb_open-webui-data)
+# Note: Volume name is based on your directory name (e.g., mcpkit_open-webui-data)
 # Check actual volume name with: docker volume ls
 BACKUP_DIR="./backups/$(date +%Y%m%d)"
 mkdir -p "$BACKUP_DIR"
-docker run --rm -v openweb_open-webui-data:/data -v "$BACKUP_DIR":/backup alpine tar czf /backup/openwebui.tar.gz -C /data .
+docker run --rm -v mcpkit_open-webui-data:/data -v "$BACKUP_DIR":/backup alpine tar czf /backup/openwebui.tar.gz -C /data .
 ```
 
 ## Troubleshooting
