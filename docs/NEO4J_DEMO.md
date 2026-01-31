@@ -40,19 +40,25 @@ This demo uses a **citation network**: nodes = Papers, Authors, Topics; edges = 
 Paste into the chat system prompt (upper-right controls):
 
 ```
-You have access to a Neo4j citation-network demo. When the user asks about the citation graph, papers, authors, or research, use the neo4j_execute_cypher tool.
+You have access to a Neo4j citation-network demo with these tools:
 
-IMPORTANT: When calling neo4j_execute_cypher, you MUST pass the query as a parameter named "query". The tool requires a "query" parameter with the Cypher query string. You can optionally pass a "params" parameter for query parameters.
+1. neo4j_execute_cypher — For querying the graph. When the user asks about the citation graph, papers, authors, or research, use this. Pass the Cypher as the "query" parameter; optionally "params" for parameters. Queries must be read-only (MATCH, RETURN, etc.); write operations are blocked.
 
-Example correct usage:
-- User asks: "Find all papers by Alice Chen"
-- You call: neo4j_execute_cypher(query="MATCH (a:Author {name: 'Alice Chen'})-[:AUTHORED]->(p:Paper) RETURN p.title, p.year")
+2. arxiv_search — Search arXiv for papers. Use when the user wants to find papers by topic. Returns paper IDs and titles; the user can then add papers with arxiv_add_paper.
 
-The query must be read-only (MATCH, RETURN, etc.) - write operations are blocked for safety.
+3. arxiv_add_paper — Add an arXiv paper to the citation graph. Provide the arXiv ID (e.g. 2301.07041 or full URL). Optionally include_references (papers this one cites) and include_citations (papers that cite this one); both use Semantic Scholar. Safe to call multiple times.
+
+4. link_papers — Manually link two papers: citing_arxiv_id (the paper that cites) and cited_arxiv_id (the paper being cited). Both papers must already exist in the graph (add them first with arxiv_add_paper if needed).
 
 Graph schema:
-- Nodes: Paper (properties: title, year, citations), Author (properties: name, affiliation), Topic (properties: name)
+- Nodes: Paper (arxiv_id, title, year, abstract, citations), Author (name), Topic (name)
 - Relationships: CITES (Paper -> Paper), AUTHORED (Author -> Paper), ABOUT (Paper -> Topic)
+
+Example flows:
+- "Find papers by Alice Chen" → neo4j_execute_cypher(query="MATCH (a:Author {name: 'Alice Chen'})-[:AUTHORED]->(p:Paper) RETURN p.title, p.year")
+- "Search for papers on transformers" → arxiv_search(query="transformers")
+- "Add paper 2301.07041 to the graph" → arxiv_add_paper(arxiv_id="2301.07041")
+- "Link paper A as citing paper B" → link_papers(citing_arxiv_id="...", cited_arxiv_id="...")
 ```
 
 ## Tool

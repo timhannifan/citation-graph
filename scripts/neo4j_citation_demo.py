@@ -38,6 +38,7 @@ class CitationGraph:
             s.run("CREATE INDEX IF NOT EXISTS FOR (p:Paper) ON (p.id)")
             s.run("CREATE INDEX IF NOT EXISTS FOR (a:Author) ON (a.name)")
             s.run("CREATE INDEX IF NOT EXISTS FOR (t:Topic) ON (t.name)")
+            s.run("CREATE INDEX IF NOT EXISTS FOR (p:Paper) ON (p.arxiv_id)")
         logger.info("Schema created")
 
     def populate_sample_data(self) -> None:

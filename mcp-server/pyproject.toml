@@ -4,9 +4,11 @@ version = "0.1.0"
 description = "MCP server for OpenWebUI with example tools and Neo4j knowledge-graph demo"
 requires-python = ">=3.12"
 dependencies = [
+    "defusedxml>=0.7.0",
     "fastmcp>=3.0.0b1",
-    "uvicorn>=0.27.0",
+    "httpx>=0.27.0",
+    "neo4j>=5.0.0",
     "pydantic>=2.0.0",
     "python-dotenv>=1.0.0",
-    "neo4j>=5.0.0",
+    "uvicorn>=0.27.0",
 ]
