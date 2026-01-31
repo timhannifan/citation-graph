@@ -1,5 +1,5 @@
 [project]
-name = "citations"
+name = "citation-graph"
 version = "0.1.0"
 description = "Citation knowledge-graph stack: OpenWebUI, MCP, Neo4j"
 requires-python = ">=3.12"

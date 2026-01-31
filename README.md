@@ -1,4 +1,4 @@
-# citations
+# citation-graph
 
 Citation knowledge-graph stack using Neo4j and MCP.
 
@@ -74,7 +74,7 @@ make clean        # Clean up Docker images and containers
 ## Project structure
 
 ```
-citations/
+citation-graph/
 ├── LICENSE
 ├── docker-compose.yaml         # Base configuration
 ├── docker-compose.override.yaml # Local dev overrides
