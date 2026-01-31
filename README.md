@@ -79,9 +79,12 @@ citations/
 ├── docker-compose.yaml         # Base configuration
 ├── docker-compose.override.yaml # Local dev overrides
 ├── mcp-server/                 # MCP server (Neo4j + arXiv tools)
-│   ├── server.py              # FastMCP server and tools
+│   ├── server.py              # FastMCP server; registers tools
 │   ├── neo4j_driver.py        # Neo4j driver and query utils
-│   ├── arxiv_tools.py         # arXiv and Semantic Scholar
+│   ├── tools/                 # MCP tool modules
+│   │   ├── arxiv.py           # arxiv_search, arxiv_add_paper (arXiv + Semantic Scholar)
+│   │   ├── graph.py           # link_papers, neo4j_execute_cypher
+│   │   └── influence.py       # compute/compare influence, find_most_influential
 │   ├── Dockerfile
 │   └── README.md
 ├── scripts/
