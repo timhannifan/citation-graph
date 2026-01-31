@@ -82,7 +82,8 @@ citations/
 │   ├── server.py              # FastMCP server; registers tools
 │   ├── neo4j_driver.py        # Neo4j driver and query utils
 │   ├── tools/                 # MCP tool modules
-│   │   ├── arxiv.py           # arxiv_search, arxiv_add_paper (arXiv + Semantic Scholar)
+│   │   ├── arxiv.py           # arxiv_search, arxiv_add_paper (arXiv metadata)
+│   │   ├── semantic_scholar.py # SS API client: citation/reference lookup, rate limit
 │   │   ├── graph.py           # link_papers, neo4j_execute_cypher
 │   │   └── influence.py       # compute/compare influence, find_most_influential
 │   ├── Dockerfile
