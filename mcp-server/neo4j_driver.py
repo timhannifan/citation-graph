@@ -1,4 +1,4 @@
-"""Neo4j citation-network demo: driver and execute_cypher_query for MCP tools."""
+"""Neo4j citation graph: driver and query utils for MCP tools."""
 
 import logging
 import os
@@ -112,7 +112,7 @@ def _format_query_results(rows: list[dict[str, Any]]) -> str:
             val = row.get(k)
             if val is None:
                 val_str = "null"
-            elif isinstance(val, (list, tuple)):
+            elif isinstance(val, list | tuple):
                 val_str = f"[{', '.join(str(v) for v in val)}]"
             elif isinstance(val, dict):
                 val_str = str(val)

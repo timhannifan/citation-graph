@@ -1,6 +1,5 @@
-# Base configuration - shared between local and production
+# Base configuration
 # Local dev: docker compose up (auto-loads docker-compose.override.yaml)
-# Production: docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d
 
 services:
   open-webui:
