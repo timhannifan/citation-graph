@@ -6,7 +6,7 @@ import os
 import re
 import sys
 import urllib.parse
-from typing import Annotated, Any, List, Dict, Optional
+from typing import Annotated, Any
 
 import defusedxml.ElementTree as ET
 import httpx
