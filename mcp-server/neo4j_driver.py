@@ -1,4 +1,4 @@
-"""Neo4j citation-network demo: driver and execute_cypher_query for MCP tools."""
+"""Neo4j citation graph: driver and query utils for MCP tools."""
 
 import logging
 import os

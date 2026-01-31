@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Citation Network Knowledge Graph Demo. Seed the citation graph for MCP tools; run anytime to reset."""
+"""Seed and demo: populates the citation graph and runs example queries for MCP tools; run anytime to reset."""
 
 import logging
 import os
@@ -233,7 +233,7 @@ def main() -> int:
         graph.create_schema()
         graph.populate_sample_data()
 
-        # Run demonstration queries
+        # Run example queries
         graph.query_most_cited()
         graph.query_citation_chain()
         graph.query_coauthorship()

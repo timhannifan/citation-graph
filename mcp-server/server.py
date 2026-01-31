@@ -1,4 +1,4 @@
-"""MCP server for OpenWebUI with Neo4j knowledge-graph demo tools."""
+"""MCP server for OpenWebUI with Neo4j citation-graph tools."""
 
 import datetime
 import logging
@@ -13,7 +13,7 @@ import httpx
 import uvicorn
 from arxiv_tools import fetch_arxiv_metadata, fetch_citations_semantic_scholar
 from fastmcp import FastMCP
-from neo4j_demo import execute_cypher_query, get_driver
+from neo4j_driver import execute_cypher_query, get_driver
 from pydantic import Field
 
 logging.basicConfig(
@@ -261,13 +261,13 @@ async def neo4j_execute_cypher(
         ),
     ] = None,
 ) -> str:
-    """Execute a custom Cypher query against the Neo4j citation demo graph. Use this when the user asks for custom queries, ad-hoc analysis, or queries that aren't covered by other tools. Generate the Cypher query based on the user's natural language request, then call this tool with the generated query. The query must be read-only (MATCH, RETURN, etc.) - write operations are blocked for safety. Returns formatted query results or an error message."""
+    """Execute a custom Cypher query against the Neo4j citation graph. Use this when the user asks for custom queries, ad-hoc analysis, or queries that aren't covered by other tools. Generate the Cypher query based on the user's natural language request, then call this tool with the generated query. The query must be read-only (MATCH, RETURN, etc.) - write operations are blocked for safety. Returns formatted query results or an error message."""
     try:
         driver = get_driver()
         if driver is None:
             error_msg = (
                 "Neo4j not configured. Set NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD. "
-                "Run the citation demo seed script first: scripts/neo4j_citation_demo.py"
+                "Run the citation graph seed/demo script first: scripts/neo4j_citation_demo.py"
             )
             logger.error("Neo4j driver not available")
             return error_msg

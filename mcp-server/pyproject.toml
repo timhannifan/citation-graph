@@ -1,7 +1,7 @@
 [project]
-name = "openwebui-mcp-server"
+name = "mcp-server"
 version = "0.1.0"
-description = "MCP server for OpenWebUI with example tools and Neo4j knowledge-graph demo"
+description = "MCP server for OpenWebUI: Neo4j citation graph and arXiv tools"
 requires-python = ">=3.12"
 dependencies = [
     "defusedxml>=0.7.0",

@@ -1,12 +1,14 @@
 # MCP Server for OpenWebUI
 
-MCP server demonstrating knowledge-graph integration via Neo4j. Exposes a single tool, `neo4j_execute_cypher`, that runs dynamic Cypher queries against a citation-network demo graph (papers, authors, topics, citations).
+MCP server with Neo4j citation graph and arXiv tools. Exposes tools for searching arXiv, adding papers to the graph, running Cypher queries, and computing influence metrics (e.g. `arxiv_search`, `arxiv_add_paper`, `neo4j_execute_cypher`, `compute_paper_influence`, `find_most_influential_papers`).
 
 ## Features
 
-- **neo4j_execute_cypher** — Execute custom Cypher queries (read-only, validated for safety)
+- **arXiv**: `arxiv_search`, `arxiv_add_paper` (Semantic Scholar for citations)
+- **Graph**: `neo4j_execute_cypher` (read-only Cypher), `link_papers`
+- **Influence**: `compute_paper_influence`, `compare_paper_influence`, `find_most_influential_papers`
 
-The graph is seeded by running `make seed-db` from the repo root. See [Neo4j Citation Demo](../docs/NEO4J_DEMO.md) for setup and usage.
+The graph is seeded by running `make seed-db` from the repo root. See [Citation graph (Neo4j + MCP)](../docs/NEO4J_DEMO.md) for schema, system prompt, and usage.
 
 ## Running
 
