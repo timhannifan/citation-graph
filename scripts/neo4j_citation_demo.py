@@ -304,14 +304,17 @@ class CitationGraph:
         """Display graph statistics."""
         with self.driver.session() as s:
             result = s.run("""
-                MATCH (p:Paper) WITH count(p) as papers
-                MATCH (a:Author) WITH papers, count(a) as authors
-                MATCH (t:Topic) WITH papers, authors, count(t) as topics
-                MATCH ()-[c:CITES]->() WITH papers, authors, topics, count(c) as citations
-                MATCH ()-[au:AUTHORED]->() WITH papers, authors, topics, citations, count(au) as authorships
+                OPTIONAL MATCH (p:Paper) WITH count(p) as papers
+                OPTIONAL MATCH (a:Author) WITH papers, count(a) as authors
+                OPTIONAL MATCH (t:Topic) WITH papers, authors, count(t) as topics
+                OPTIONAL MATCH ()-[c:CITES]->() WITH papers, authors, topics, count(c) as citations
+                OPTIONAL MATCH ()-[au:AUTHORED]->() WITH papers, authors, topics, citations, count(au) as authorships
                 RETURN papers, authors, topics, citations, authorships
             """)
             record = result.single()
+            if record is None:
+                logger.info("\nGraph statistics: (no data)")
+                return
             logger.info("\nGraph statistics:")
             logger.info("  Papers: %d", record["papers"])
             logger.info("  Authors: %d", record["authors"])

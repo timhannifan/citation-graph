@@ -478,17 +478,17 @@ async def semantic_scholar_search(
     }
 
 
-async def semantic_scholar_author(
+async def semantic_scholar_get_author(
     author_id: Annotated[str, Field(description="Semantic Scholar author ID")],
-    add_to_graph: Annotated[bool, Field(default=True, description="Add/update author in Neo4j")] = True,
     include_papers: Annotated[bool, Field(default=False, description="Also fetch author's papers")] = False,
     papers_limit: Annotated[int, Field(default=20, ge=1, le=100, description="Max papers to fetch")] = 20,
 ) -> dict[str, Any]:
     """
-    Get author details from Semantic Scholar.
+    Get author details from Semantic Scholar (API only).
 
-    Returns name, affiliations, h-index, citation count, paper count.
-    Optionally fetches their papers and adds everything to Neo4j.
+    Returns authorId, name, affiliations, homepage, paperCount, citationCount, hIndex.
+    Optionally include papers list. Call only when graph_get_author returns not found.
+    No Neo4j side effects.
     """
     author = await get_author(author_id)
 
@@ -507,7 +507,6 @@ async def semantic_scholar_author(
         "hIndex": author.get("hIndex"),
     }
 
-    # Fetch papers if requested
     if include_papers:
         papers_result = await get_author_papers(author_id, limit=papers_limit)
         if papers_result and "data" in papers_result:
@@ -522,32 +521,6 @@ async def semantic_scholar_author(
                 for p in papers_result["data"]
             ]
 
-    # Add to Neo4j if requested
-    if add_to_graph:
-        driver = get_driver()
-        if driver:
-            with driver.session() as session:
-                session.run(
-                    """
-                    MERGE (a:Author {s2_id: $author_id})
-                    SET a.name = $name,
-                        a.affiliations = $affiliations,
-                        a.homepage = $homepage,
-                        a.paper_count = $paper_count,
-                        a.citation_count = $citation_count,
-                        a.h_index = $h_index,
-                        a.updated_at = datetime()
-                    """,
-                    author_id=author.get("authorId"),
-                    name=author.get("name"),
-                    affiliations=author.get("affiliations") or [],
-                    homepage=author.get("homepage"),
-                    paper_count=author.get("paperCount"),
-                    citation_count=author.get("citationCount"),
-                    h_index=author.get("hIndex"),
-                )
-            result["added_to_graph"] = True
-
     return result
 
 
@@ -558,7 +531,7 @@ async def semantic_scholar_author_search(
     """
     Search for authors by name on Semantic Scholar.
 
-    Returns author IDs that can be used with semantic_scholar_author.
+    Returns author IDs that can be used with semantic_scholar_get_author or graph_get_author.
     """
     result = await search_authors(query=query, limit=limit)
 
@@ -1132,7 +1105,7 @@ def register(mcp):
     """Register Semantic Scholar tools with the FastMCP instance."""
     mcp.tool()(semantic_scholar_paper)
     mcp.tool()(semantic_scholar_search)
-    mcp.tool()(semantic_scholar_author)
+    mcp.tool()(semantic_scholar_get_author)
     mcp.tool()(semantic_scholar_author_search)
     mcp.tool()(semantic_scholar_expand_citations)
     mcp.tool()(semantic_scholar_similar_papers)
