@@ -43,6 +43,146 @@ async def link_papers(
         return f"Linked: '{record['from_title'][:40]}...' → '{record['to_title'][:40]}...'"
 
 
+def _normalize_paper_id(paper_id: str) -> str:
+    """Strip ARXIV: prefix for lookup."""
+    if paper_id.startswith("ARXIV:"):
+        return paper_id.replace("ARXIV:", "")
+    return paper_id
+
+
+async def graph_get_paper(
+    paper_id: Annotated[str, Field(description="Paper ID: S2 ID, arXiv ID, or DOI. Use first to avoid API for papers already in Neo4j.")],
+) -> dict[str, Any]:
+    """Look up a paper in the graph by s2_id, arxiv_id, or doi (read-only). Returns paper data if found, or error dict. No API call."""
+    driver = get_driver()
+    if driver is None:
+        return {"error": "Neo4j not configured."}
+
+    pid = _normalize_paper_id(paper_id)
+    with driver.session() as session:
+        result = session.run(
+            """
+            MATCH (p:Paper)
+            WHERE p.s2_id = $paper_id OR p.arxiv_id = $paper_id OR p.doi = $paper_id
+            RETURN p.s2_id as s2_id,
+                   p.arxiv_id as arxiv_id,
+                   p.doi as doi,
+                   p.title as title,
+                   p.year as year,
+                   p.abstract as abstract,
+                   p.citation_count as citation_count,
+                   p.influential_citation_count as influential_citation_count,
+                   p.tldr as tldr,
+                   p.open_access_url as open_access_url,
+                   p.fields_of_study as fields_of_study
+            """,
+            paper_id=pid,
+        )
+        record = result.single()
+    if not record:
+        return {"error": "Paper not in graph"}
+    return {
+        "s2_id": record["s2_id"],
+        "arxiv_id": record["arxiv_id"],
+        "doi": record["doi"],
+        "title": record["title"],
+        "year": record["year"],
+        "abstract": record["abstract"],
+        "citation_count": record["citation_count"],
+        "influential_citation_count": record["influential_citation_count"],
+        "tldr": record["tldr"],
+        "open_access_url": record["open_access_url"],
+        "fields_of_study": record["fields_of_study"] or [],
+    }
+
+
+async def graph_add_paper(
+    s2_id: Annotated[str, Field(description="Semantic Scholar paper ID")],
+    title: Annotated[str, Field(description="Paper title")],
+    year: Annotated[int | None, Field(default=None, description="Publication year")] = None,
+    abstract: Annotated[str | None, Field(default=None, description="Abstract")] = None,
+    arxiv_id: Annotated[str | None, Field(default=None, description="arXiv ID")] = None,
+    doi: Annotated[str | None, Field(default=None, description="DOI")] = None,
+    citation_count: Annotated[int | None, Field(default=None, description="Citation count")] = None,
+    influential_citation_count: Annotated[int | None, Field(default=None, description="Influential citation count")] = None,
+    tldr: Annotated[str | None, Field(default=None, description="TLDR summary")] = None,
+    open_access_url: Annotated[str | None, Field(default=None, description="Open access PDF URL")] = None,
+    fields_of_study: Annotated[list[str] | None, Field(default=None, description="Fields of study")] = None,
+    authors: Annotated[list[dict[str, Any]] | None, Field(default=None, description="List of {authorId, name}")] = None,
+    embedding: Annotated[list[float] | None, Field(default=None, description="SPECTER2 embedding vector")] = None,
+) -> str:
+    """Add or update a paper node and related authors/topics (DB only). Use payload from semantic_scholar_get_paper when paper is not in graph. Map paperId->s2_id, citationCount->citation_count, influentialCitationCount->influential_citation_count, openAccessPdf->open_access_url."""
+    driver = get_driver()
+    if driver is None:
+        return "Neo4j not configured."
+
+    with driver.session() as session:
+        session.run(
+            """
+            MERGE (p:Paper {s2_id: $s2_id})
+            SET p.title = $title,
+                p.year = $year,
+                p.abstract = $abstract,
+                p.arxiv_id = $arxiv_id,
+                p.doi = $doi,
+                p.citation_count = $citation_count,
+                p.influential_citation_count = $influential_citation_count,
+                p.tldr = $tldr,
+                p.open_access_url = $open_access_url,
+                p.fields_of_study = $fields_of_study,
+                p.updated_at = datetime()
+            """,
+            s2_id=s2_id,
+            title=title,
+            year=year,
+            abstract=abstract,
+            arxiv_id=arxiv_id,
+            doi=doi,
+            citation_count=citation_count,
+            influential_citation_count=influential_citation_count,
+            tldr=tldr,
+            open_access_url=open_access_url,
+            fields_of_study=fields_of_study or [],
+        )
+        for author in authors or []:
+            aid = author.get("authorId")
+            name = author.get("name")
+            if aid:
+                session.run(
+                    """
+                    MERGE (a:Author {s2_id: $author_id})
+                    SET a.name = $name
+                    WITH a
+                    MATCH (p:Paper {s2_id: $paper_id})
+                    MERGE (a)-[:AUTHORED]->(p)
+                    """,
+                    author_id=aid,
+                    name=name,
+                    paper_id=s2_id,
+                )
+        for field in fields_of_study or []:
+            session.run(
+                """
+                MERGE (t:Topic {name: $name})
+                WITH t
+                MATCH (p:Paper {s2_id: $paper_id})
+                MERGE (p)-[:ABOUT]->(t)
+                """,
+                name=field,
+                paper_id=s2_id,
+            )
+        if embedding is not None:
+            session.run(
+                """
+                MATCH (p:Paper {s2_id: $paper_id})
+                SET p.embedding = $embedding
+                """,
+                paper_id=s2_id,
+                embedding=embedding,
+            )
+    return f"Added/updated paper {title[:60]}... ({s2_id})." if len(title) > 60 else f"Added/updated paper {title} ({s2_id})."
+
+
 async def graph_get_author(
     author_id: Annotated[str, Field(description="Semantic Scholar author ID (s2_id). Use first to avoid calling API for authors already in Neo4j.")],
 ) -> dict[str, Any]:
@@ -150,6 +290,8 @@ async def neo4j_execute_cypher(
 def register(mcp):
     """Register graph tools with the FastMCP instance."""
     mcp.tool()(link_papers)
+    mcp.tool()(graph_get_paper)
+    mcp.tool()(graph_add_paper)
     mcp.tool()(graph_get_author)
     mcp.tool()(graph_add_author)
     mcp.tool()(neo4j_execute_cypher)

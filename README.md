@@ -96,7 +96,7 @@ citation-graph/
 
 ## Citation graph and MCP tools
 
-The MCP server exposes tools for the Neo4j citation graph: `arxiv_search`, `arxiv_add_paper`, `link_papers`, `neo4j_execute_cypher`, `compute_paper_influence`, `find_most_influential_papers`, plus Semantic Scholar tools. For schema, Cypher examples, and Neo4j Browser, see [docs/NEO4J_DEMO.md](docs/NEO4J_DEMO.md).
+The MCP server exposes tools for the Neo4j citation graph: `arxiv_search`, `arxiv_add_paper`, `link_papers`, `graph_get_paper`, `graph_add_paper`, `graph_get_author`, `graph_add_author`, `neo4j_execute_cypher`, `compute_paper_influence`, `find_most_influential_papers`, plus Semantic Scholar tools (e.g. `semantic_scholar_get_paper`, `semantic_scholar_search`, `semantic_scholar_expand_citations`). For schema, Cypher examples, and Neo4j Browser, see [docs/NEO4J_DEMO.md](docs/NEO4J_DEMO.md).
 
 ## License
 

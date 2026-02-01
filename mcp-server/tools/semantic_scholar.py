@@ -313,16 +313,16 @@ def extract_doi(paper: dict[str, Any]) -> str | None:
     return ext_ids.get("DOI")
 
 
-async def semantic_scholar_paper(
+async def semantic_scholar_get_paper(
     paper_id: Annotated[str, Field(description="Paper ID: S2 ID, 'ARXIV:2301.07041', 'DOI:10.1234/...', or URL")],
-    add_to_graph: Annotated[bool, Field(default=True, description="Add/update paper in Neo4j")] = True,
     include_embedding: Annotated[bool, Field(default=False, description="Fetch SPECTER2 embedding")] = False,
 ) -> dict[str, Any]:
     """
-    Get detailed paper information from Semantic Scholar.
+    Get paper details from Semantic Scholar (API only).
 
-    Returns title, abstract, authors, fieldsOfStudy, TLDR summary, citation counts,
-    and open access PDF link if available. Optionally stores in Neo4j.
+    Returns paperId, title, year, abstract, authors, fieldsOfStudy, citationCount,
+    influentialCitationCount, tldr, openAccessPdf, externalIds; optionally embedding.
+    Call only when graph_get_paper returns not found. No Neo4j side effects.
     """
     paper = await get_paper(paper_id, include_embedding=include_embedding)
 
@@ -337,7 +337,7 @@ async def semantic_scholar_paper(
         "year": paper.get("year"),
         "abstract": paper.get("abstract"),
         "authors": [
-            {"id": a.get("authorId"), "name": a.get("name")}
+            {"authorId": a.get("authorId"), "name": a.get("name")}
             for a in (paper.get("authors") or [])
         ],
         "fieldsOfStudy": paper.get("fieldsOfStudy") or [],
@@ -351,83 +351,6 @@ async def semantic_scholar_paper(
 
     if include_embedding and paper.get("embedding"):
         result["embedding"] = paper["embedding"].get("vector")
-
-    # Add to Neo4j if requested
-    if add_to_graph:
-        driver = get_driver()
-        if driver:
-            arxiv_id = extract_arxiv_id(paper)
-            with driver.session() as session:
-                # Use S2 paper ID as primary key, arxiv_id as optional
-                session.run(
-                    """
-                    MERGE (p:Paper {s2_id: $s2_id})
-                    SET p.title = $title,
-                        p.year = $year,
-                        p.abstract = $abstract,
-                        p.arxiv_id = $arxiv_id,
-                        p.doi = $doi,
-                        p.citation_count = $citation_count,
-                        p.influential_citation_count = $influential_citations,
-                        p.tldr = $tldr,
-                        p.open_access_url = $open_access_url,
-                        p.fields_of_study = $fields_of_study,
-                        p.updated_at = datetime()
-                    """,
-                    s2_id=paper.get("paperId"),
-                    title=paper.get("title"),
-                    year=paper.get("year"),
-                    abstract=paper.get("abstract"),
-                    arxiv_id=arxiv_id,
-                    doi=extract_doi(paper),
-                    citation_count=paper.get("citationCount"),
-                    influential_citations=paper.get("influentialCitationCount"),
-                    tldr=paper.get("tldr", {}).get("text") if paper.get("tldr") else None,
-                    open_access_url=paper.get("openAccessPdf", {}).get("url") if paper.get("openAccessPdf") else None,
-                    fields_of_study=paper.get("fieldsOfStudy") or [],
-                )
-
-                # Add authors
-                for author in paper.get("authors") or []:
-                    if author.get("authorId"):
-                        session.run(
-                            """
-                            MERGE (a:Author {s2_id: $author_id})
-                            SET a.name = $name
-                            WITH a
-                            MATCH (p:Paper {s2_id: $paper_id})
-                            MERGE (a)-[:AUTHORED]->(p)
-                            """,
-                            author_id=author["authorId"],
-                            name=author.get("name"),
-                            paper_id=paper.get("paperId"),
-                        )
-
-                # Add fields of study as topics
-                for field in paper.get("fieldsOfStudy") or []:
-                    session.run(
-                        """
-                        MERGE (t:Topic {name: $name})
-                        WITH t
-                        MATCH (p:Paper {s2_id: $paper_id})
-                        MERGE (p)-[:ABOUT]->(t)
-                        """,
-                        name=field,
-                        paper_id=paper.get("paperId"),
-                    )
-
-                # Store embedding if present
-                if include_embedding and paper.get("embedding"):
-                    session.run(
-                        """
-                        MATCH (p:Paper {s2_id: $paper_id})
-                        SET p.embedding = $embedding
-                        """,
-                        paper_id=paper.get("paperId"),
-                        embedding=paper["embedding"].get("vector"),
-                    )
-
-            result["added_to_graph"] = True
 
     return result
 
@@ -444,7 +367,7 @@ async def semantic_scholar_search(
     Search Semantic Scholar for papers by keyword.
 
     More comprehensive than arXiv search—covers all academic disciplines.
-    Returns paper IDs that can be added to the graph with semantic_scholar_paper.
+    Returns paper IDs that can be added with graph_get_paper / semantic_scholar_get_paper / graph_add_paper.
     """
     result = await search_papers(
         query=query,
@@ -613,16 +536,18 @@ async def semantic_scholar_expand_citations(
                         arxiv_id=paper.get("arxivId"),
                     )
 
-                    # Create citation relationship
+                    # Create citation relationship (source paper may be identified by s2_id or arxiv_id)
+                    source_id = paper_id.replace("ARXIV:", "") if paper_id.startswith("ARXIV:") else paper_id
                     if direction == "references":
                         # This paper cites the fetched paper
                         session.run(
                             """
-                            MATCH (citing:Paper {s2_id: $citing_id})
+                            MATCH (citing:Paper)
+                            WHERE citing.s2_id = $source_id OR citing.arxiv_id = $source_id
                             MATCH (cited:Paper {s2_id: $cited_id})
                             MERGE (citing)-[:CITES]->(cited)
                             """,
-                            citing_id=paper_id.replace("ARXIV:", "") if paper_id.startswith("ARXIV:") else paper_id,
+                            source_id=source_id,
                             cited_id=paper["paperId"],
                         )
                     else:
@@ -630,11 +555,12 @@ async def semantic_scholar_expand_citations(
                         session.run(
                             """
                             MATCH (citing:Paper {s2_id: $citing_id})
-                            MATCH (cited:Paper {s2_id: $cited_id})
+                            MATCH (cited:Paper)
+                            WHERE cited.s2_id = $source_id OR cited.arxiv_id = $source_id
                             MERGE (citing)-[:CITES]->(cited)
                             """,
                             citing_id=paper["paperId"],
-                            cited_id=paper_id.replace("ARXIV:", "") if paper_id.startswith("ARXIV:") else paper_id,
+                            source_id=source_id,
                         )
 
     return {
@@ -694,8 +620,7 @@ async def semantic_scholar_similar_papers(
             # Try to fetch embedding from Semantic Scholar
             return {
                 "error": f"Paper '{record['title'][:50]}...' has no embedding. "
-                "Re-add it with include_embedding=True: "
-                f"semantic_scholar_paper('{paper_id}', include_embedding=True)"
+                "Use graph_get_paper first; if not in graph, semantic_scholar_get_paper(paper_id, include_embedding=True) then graph_add_paper(...)."
             }
 
         source_paper = {
@@ -1103,7 +1028,7 @@ async def semantic_scholar_cluster_papers(
 
 def register(mcp):
     """Register Semantic Scholar tools with the FastMCP instance."""
-    mcp.tool()(semantic_scholar_paper)
+    mcp.tool()(semantic_scholar_get_paper)
     mcp.tool()(semantic_scholar_search)
     mcp.tool()(semantic_scholar_get_author)
     mcp.tool()(semantic_scholar_author_search)

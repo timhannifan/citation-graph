@@ -5,7 +5,8 @@ MCP server with Neo4j citation graph and arXiv tools. Exposes tools for searchin
 ## Features
 
 - **arXiv**: `arxiv_search`, `arxiv_add_paper` (metadata from arXiv only)
-- **Graph**: `neo4j_execute_cypher` (read-only Cypher), `link_papers`, `graph_get_author`, `graph_add_author`
+- **Graph**: `neo4j_execute_cypher` (read-only Cypher), `link_papers`, `graph_get_paper`, `graph_add_paper`, `graph_get_author`, `graph_add_author`
+- **Semantic Scholar (papers)**: `semantic_scholar_get_paper` (API only); use `graph_get_paper` first to avoid API for papers already in Neo4j, then `graph_add_paper` with payload
 - **Semantic Scholar (authors)**: `semantic_scholar_author_search`, `semantic_scholar_get_author` (API only); use `graph_get_author` first to avoid API for authors already in Neo4j, then `graph_add_author` with payload
 - **Influence**: `compute_paper_influence` (paper_id), `find_most_influential_papers`
 
