@@ -1,4 +1,4 @@
-"""arXiv tools: search and add papers to the citation graph (metadata from arXiv; citations from Semantic Scholar)."""
+"""arXiv tools: search and add papers to the citation graph (metadata from arXiv only)."""
 
 import logging
 import re
@@ -9,8 +9,6 @@ import defusedxml.ElementTree as ET
 import httpx
 from neo4j_driver import get_driver
 from pydantic import Field
-
-from .semantic_scholar import fetch_citations_semantic_scholar
 
 logger = logging.getLogger(__name__)
 
@@ -115,19 +113,13 @@ async def arxiv_search(
 
 async def arxiv_add_paper(
     arxiv_id: Annotated[str, Field(description="arXiv paper ID (e.g., '2301.07041' or full URL)")],
-    include_references: Annotated[
-        bool, Field(default=True, description="Also add papers this cites")
-    ] = True,
-    include_citations: Annotated[
-        bool, Field(default=False, description="Also add papers that cite this")
-    ] = False,
 ) -> str:
     """
     Add an arXiv paper to the citation graph.
 
-    Fetches metadata from arXiv and citation data from Semantic Scholar.
-    Creates Paper, Author, and Topic nodes with appropriate relationships.
+    Fetches metadata from arXiv. Creates Paper, Author, and Topic nodes.
     Safe to call multiple times (uses MERGE for idempotency).
+    Use semantic_scholar tools to add citation/reference edges.
     """
     driver = get_driver()
     if driver is None:
@@ -178,58 +170,10 @@ async def arxiv_add_paper(
                 arxiv_id=meta["arxiv_id"],
             )
 
-    result_parts = [
+    return "\n".join([
         f"Added: {meta['title'][:60]}...",
         f"  Authors: {', '.join(meta['authors'][:3])}",
-    ]
-
-    if include_references or include_citations:
-        citation_data = await fetch_citations_semantic_scholar(arxiv_id)
-
-        if include_references and citation_data["references"]:
-            ref_ids = [r["arxiv_id"] for r in citation_data["references"][:10]]
-            with driver.session() as session:
-                for ref in citation_data["references"][:10]:
-                    session.run(
-                        """
-                        MERGE (ref:Paper {arxiv_id: $ref_id})
-                        ON CREATE SET ref.title = $title, ref.citations = 0
-                        WITH ref
-                        MATCH (p:Paper {arxiv_id: $paper_id})
-                        MERGE (p)-[:CITES]->(ref)
-                    """,
-                        ref_id=ref["arxiv_id"],
-                        title=ref.get("title", "Unknown"),
-                        paper_id=arxiv_id,
-                    )
-            result_parts.append(f"  Added {len(ref_ids)} references")
-
-        if include_citations and citation_data["citations"]:
-            cit_ids = [c["arxiv_id"] for c in citation_data["citations"][:10]]
-            with driver.session() as session:
-                for cit in citation_data["citations"][:10]:
-                    session.run(
-                        """
-                        MERGE (citer:Paper {arxiv_id: $citer_id})
-                        ON CREATE SET citer.title = $title, citer.citations = 0
-                        WITH citer
-                        MATCH (p:Paper {arxiv_id: $paper_id})
-                        MERGE (citer)-[:CITES]->(p)
-                    """,
-                        citer_id=cit["arxiv_id"],
-                        title=cit.get("title", "Unknown"),
-                        paper_id=arxiv_id,
-                    )
-            result_parts.append(f"  Added {len(cit_ids)} citing papers")
-
-    with driver.session() as session:
-        session.run("""
-            MATCH (p:Paper)<-[c:CITES]-()
-            WITH p, count(c) as cnt
-            SET p.citations = cnt
-        """)
-
-    return "\n".join(result_parts)
+    ])
 
 
 def register(mcp):

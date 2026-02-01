@@ -15,7 +15,7 @@ seed-db: ## Seed and demo Neo4j citation graph (run after make dev; runs script 
 		-e NEO4J_URI=bolt://neo4j:7687 \
 		-e NEO4J_USER=neo4j \
 		-e NEO4J_PASSWORD=$${NEO4J_PASSWORD:-password123} \
-		mcp-server python neo4j_citation_demo.py
+		mcp-server python neo4j_citation_demo.py --seed
 
 logs: ## View MCP server logs (usage: make logs or make logs SERVICE=mcp-server)
 	@if [ -z "$(SERVICE)" ]; then \

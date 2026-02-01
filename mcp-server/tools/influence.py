@@ -10,7 +10,7 @@ EMERGING_PAPER_AGE_YEARS = 3
 MIN_CITATIONS_FOR_EMERGING = 10
 
 
-def compute_pagerank(_session, arxiv_id: str) -> float:
+def compute_pagerank(_session, paper_id: str) -> float:
     """Compute PageRank for a paper using Neo4j GDS."""
     driver = get_driver()
     if driver is None:
@@ -22,28 +22,30 @@ def compute_pagerank(_session, arxiv_id: str) -> float:
                 CALL gds.pageRank.stream('citations-graph')
                 YIELD nodeId, score
                 WITH gds.util.asNode(nodeId) AS node, score
-                WHERE node.arxiv_id = $arxiv_id
+                WHERE node.arxiv_id = $paper_id OR node.s2_id = $paper_id
                 RETURN score
             """,
-                arxiv_id=arxiv_id,
+                paper_id=paper_id,
             )
             record = result.single()
             return record["score"] if record else 0.0
         except Exception:  # noqa: BLE001 - intentional fallback when GDS unavailable
             result = neo4j_session.run(
                 """
-                MATCH (p:Paper {arxiv_id: $arxiv_id})<-[:CITES]-(citing)
+                MATCH (p:Paper)
+                WHERE p.arxiv_id = $paper_id OR p.s2_id = $paper_id
+                MATCH (p)<-[:CITES]-(citing)
                 OPTIONAL MATCH (citing)<-[:CITES]-(second)
                 WITH p, count(DISTINCT citing) as direct, count(DISTINCT second) as indirect
                 RETURN (direct + indirect * 0.5) as approx_pagerank
             """,
-                arxiv_id=arxiv_id,
+                paper_id=paper_id,
             )
             record = result.single()
             return (record["approx_pagerank"] or 0) / 10000.0
 
 
-def compute_betweenness(session, arxiv_id: str) -> float:
+def compute_betweenness(session, paper_id: str) -> float:
     """Compute betweenness centrality for a paper."""
     try:
         result = session.run(
@@ -51,32 +53,35 @@ def compute_betweenness(session, arxiv_id: str) -> float:
             CALL gds.betweenness.stream('citations-graph')
             YIELD nodeId, score
             WITH gds.util.asNode(nodeId) AS node, score
-            WHERE node.arxiv_id = $arxiv_id
+            WHERE node.arxiv_id = $paper_id OR node.s2_id = $paper_id
             RETURN score
         """,
-            arxiv_id=arxiv_id,
+            paper_id=paper_id,
         )
         record = result.single()
         return record["score"] if record else 0.0
     except Exception:  # noqa: BLE001 - intentional fallback when GDS unavailable
         result = session.run(
             """
-            MATCH (p:Paper {arxiv_id: $arxiv_id})
+            MATCH (p:Paper)
+            WHERE p.arxiv_id = $paper_id OR p.s2_id = $paper_id
             MATCH (p)<-[:CITES]-(citing)-[:CITES]->(other)
             WHERE other <> p
             RETURN count(DISTINCT citing) as bridge_count
         """,
-            arxiv_id=arxiv_id,
+            paper_id=paper_id,
         )
         record = result.single()
         return (record["bridge_count"] or 0) / 1000.0
 
 
-def compute_h_index_contribution(session, arxiv_id: str) -> int:
+def compute_h_index_contribution(session, paper_id: str) -> int:
     """Compute how this paper contributes to authors' h-index."""
     result = session.run(
         """
-        MATCH (p:Paper {arxiv_id: $arxiv_id})<-[:AUTHORED]-(author:Author)
+        MATCH (p:Paper)
+        WHERE p.arxiv_id = $paper_id OR p.s2_id = $paper_id
+        MATCH (p)<-[:AUTHORED]-(author:Author)
         MATCH (author)-[:AUTHORED]->(other_paper:Paper)
         OPTIONAL MATCH (other_paper)<-[:CITES]-(citing)
         WITH author, other_paper, count(citing) as citations
@@ -84,39 +89,41 @@ def compute_h_index_contribution(session, arxiv_id: str) -> int:
         WITH author, collect(citations) as citation_counts
         RETURN avg([c in citation_counts WHERE c >= size(citation_counts)]) as h_contribution
     """,
-        arxiv_id=arxiv_id,
+        paper_id=paper_id,
     )
     record = result.single()
     return int(record["h_contribution"] or 0)
 
 
-def compute_rankings(session, arxiv_id: str, _influence_scores: dict) -> dict[str, int]:
+def compute_rankings(session, paper_id: str, _influence_scores: dict) -> dict[str, int]:
     """Compute rankings compared to other papers."""
     result = session.run("""
         MATCH (p:Paper)
         WHERE p.pagerank_score IS NOT NULL
         WITH p ORDER BY p.pagerank_score DESC
-        WITH collect(p.arxiv_id) as ranked_papers
+        WITH collect(coalesce(p.arxiv_id, p.s2_id)) as ranked_papers
         RETURN ranked_papers
     """)
     record = result.single()
     ranked_papers = record["ranked_papers"] if record else []
-    overall_rank = ranked_papers.index(arxiv_id) + 1 if arxiv_id in ranked_papers else None
+    current_canonical = _get_canonical_id(session, paper_id)
+    overall_rank = ranked_papers.index(current_canonical) + 1 if current_canonical and current_canonical in ranked_papers else None
 
     result = session.run(
         """
-        MATCH (p:Paper {arxiv_id: $arxiv_id})
+        MATCH (p:Paper)
+        WHERE p.arxiv_id = $paper_id OR p.s2_id = $paper_id
         MATCH (cohort:Paper)
         WHERE cohort.year = p.year AND cohort.pagerank_score IS NOT NULL
         WITH cohort ORDER BY cohort.pagerank_score DESC
-        WITH collect(cohort.arxiv_id) as ranked_cohort
+        WITH collect(coalesce(cohort.arxiv_id, cohort.s2_id)) as ranked_cohort
         RETURN ranked_cohort
     """,
-        arxiv_id=arxiv_id,
+        paper_id=paper_id,
     )
     record = result.single()
     ranked_cohort = record["ranked_cohort"] if record else []
-    cohort_rank = ranked_cohort.index(arxiv_id) + 1 if arxiv_id in ranked_cohort else None
+    cohort_rank = ranked_cohort.index(current_canonical) + 1 if current_canonical and current_canonical in ranked_cohort else None
 
     return {
         "overall_rank": overall_rank,
@@ -125,19 +132,35 @@ def compute_rankings(session, arxiv_id: str, _influence_scores: dict) -> dict[st
     }
 
 
-def compute_trends(session, arxiv_id: str, citing_papers: list, paper_year: int) -> dict:
+def _get_canonical_id(session, paper_id: str) -> str | None:
+    """Return coalesce(arxiv_id, s2_id) for the paper."""
+    result = session.run(
+        """
+        MATCH (p:Paper)
+        WHERE p.arxiv_id = $paper_id OR p.s2_id = $paper_id
+        RETURN coalesce(p.arxiv_id, p.s2_id) as canonical_id
+        """,
+        paper_id=paper_id,
+    )
+    record = result.single()
+    return record["canonical_id"] if record else None
+
+
+def compute_trends(session, paper_id: str, citing_papers: list, paper_year: int) -> dict:
     """Analyze citation trends over time."""
     if not paper_year or not citing_papers:
         return {"trend": "insufficient_data"}
 
     result = session.run(
         """
-        MATCH (p:Paper {arxiv_id: $arxiv_id})<-[:CITES]-(citing:Paper)
+        MATCH (p:Paper)
+        WHERE p.arxiv_id = $paper_id OR p.s2_id = $paper_id
+        MATCH (p)<-[:CITES]-(citing:Paper)
         WHERE citing.year IS NOT NULL
         RETURN citing.year as year, count(*) as citations
         ORDER BY year
     """,
-        arxiv_id=arxiv_id,
+        paper_id=paper_id,
     )
     citations_by_year = {record["year"]: record["citations"] for record in result}
 
@@ -172,11 +195,12 @@ def compute_trends(session, arxiv_id: str, citing_papers: list, paper_year: int)
     }
 
 
-def store_influence_metrics(session, arxiv_id: str, scores: dict, rankings: dict):
+def store_influence_metrics(session, paper_id: str, scores: dict, rankings: dict):
     """Store computed metrics back to the graph."""
     session.run(
         """
-        MATCH (p:Paper {arxiv_id: $arxiv_id})
+        MATCH (p:Paper)
+        WHERE p.arxiv_id = $paper_id OR p.s2_id = $paper_id
         SET p.pagerank_score = $pagerank,
             p.citation_count = $citations,
             p.citation_velocity = $velocity,
@@ -184,7 +208,7 @@ def store_influence_metrics(session, arxiv_id: str, scores: dict, rankings: dict
             p.betweenness_score = $betweenness,
             p.last_influence_update = datetime()
     """,
-        arxiv_id=arxiv_id,
+        paper_id=paper_id,
         pagerank=scores.get("pagerank", 0),
         citations=scores.get("total_citations", 0),
         velocity=scores.get("citation_velocity", 0),
@@ -194,7 +218,7 @@ def store_influence_metrics(session, arxiv_id: str, scores: dict, rankings: dict
 
 
 def compute_paper_influence(
-    arxiv_id: str,
+    paper_id: str,
     metrics: list[str] | None = None,
     _time_window: str = "all",
     normalize_by_age: bool = True,
@@ -204,7 +228,7 @@ def compute_paper_influence(
     Compute influence metrics for a paper in the citation graph.
 
     Args:
-        arxiv_id: ArXiv ID of the paper (e.g., "1609.02907")
+        paper_id: Paper ID (arXiv ID, Semantic Scholar ID, or DOI).
         metrics: List of metrics to compute. Options:
                  ["citations", "pagerank", "betweenness", "h_index",
                   "citation_velocity", "second_order_citations"]
@@ -232,7 +256,8 @@ def compute_paper_influence(
     with driver.session() as session:
         result = session.run(
             """
-            MATCH (p:Paper {arxiv_id: $arxiv_id})
+            MATCH (p:Paper)
+            WHERE p.arxiv_id = $paper_id OR p.s2_id = $paper_id
             OPTIONAL MATCH (p)<-[:CITES]-(citing:Paper)
             OPTIONAL MATCH (p)-[:CITES]->(cited:Paper)
             OPTIONAL MATCH (citing)<-[:CITES]-(second_order:Paper)
@@ -242,21 +267,25 @@ def compute_paper_influence(
                  collect(DISTINCT second_order) as second_order_papers
             RETURN p.title as title,
                    p.arxiv_id as arxiv_id,
+                   p.s2_id as s2_id,
                    p.year as year,
                    citing_papers,
                    cited_papers,
                    second_order_papers
             """,
-            arxiv_id=arxiv_id,
+            paper_id=paper_id,
         )
 
         record = result.single()
         if not record:
-            return {"error": f"Paper {arxiv_id} not found in database"}
+            return {"error": f"Paper {paper_id} not found in database"}
 
+        canonical_id = record["arxiv_id"] or record["s2_id"]
         paper_data = {
+            "paper_id": canonical_id,
             "title": record["title"],
             "arxiv_id": record["arxiv_id"],
+            "s2_id": record["s2_id"],
             "year": record["year"],
         }
 
@@ -281,14 +310,14 @@ def compute_paper_influence(
             influence_scores["second_order_citations"] = len(second_order_papers)
 
         if "pagerank" in metrics:
-            influence_scores["pagerank"] = round(compute_pagerank(session, arxiv_id), 6)
+            influence_scores["pagerank"] = round(compute_pagerank(session, paper_id), 6)
 
         if "betweenness" in metrics:
-            influence_scores["betweenness"] = round(compute_betweenness(session, arxiv_id), 6)
+            influence_scores["betweenness"] = round(compute_betweenness(session, paper_id), 6)
 
         if "h_index" in metrics:
             influence_scores["h_index_contribution"] = compute_h_index_contribution(
-                session, arxiv_id
+                session, paper_id
             )
 
         if normalize_by_age and paper_age > 0:
@@ -298,11 +327,11 @@ def compute_paper_influence(
             )
             influence_scores["age_normalized_score"] = round(normalized_score, 2)
 
-        rankings = compute_rankings(session, arxiv_id, influence_scores)
-        trends = compute_trends(session, arxiv_id, citing_papers, paper_data["year"])
+        rankings = compute_rankings(session, paper_id, influence_scores)
+        trends = compute_trends(session, paper_id, citing_papers, paper_data["year"])
 
         if store_in_graph:
-            store_influence_metrics(session, arxiv_id, influence_scores, rankings)
+            store_influence_metrics(session, paper_id, influence_scores, rankings)
 
         return {
             "paper": paper_data,
@@ -315,52 +344,6 @@ def compute_paper_influence(
                 "metrics_computed": metrics,
             },
         }
-
-
-def compare_paper_influence(
-    arxiv_ids: list[str],
-    metrics: list[str] | None = None,
-) -> dict[str, Any]:
-    """
-    Compare influence metrics across multiple papers.
-
-    Args:
-        arxiv_ids: List of arXiv IDs to compare
-        metrics: Metrics to compare (default: all)
-
-    Returns:
-        Comparison table and rankings
-    """
-    if metrics is None:
-        metrics = ["citations", "pagerank", "citation_velocity"]
-
-    comparisons = {}
-    for arxiv_id in arxiv_ids:
-        result = compute_paper_influence(arxiv_id=arxiv_id, metrics=metrics, store_in_graph=False)
-        comparisons[arxiv_id] = result
-
-    comparison_table = []
-    for arxiv_id, data in comparisons.items():
-        if "error" not in data:
-            row = {
-                "arxiv_id": arxiv_id,
-                "title": data["paper"]["title"][:50] + "...",
-                **data["influence_scores"],
-            }
-            comparison_table.append(row)
-
-    rankings_by_metric = {}
-    for metric in metrics:
-        sorted_papers = sorted(comparison_table, key=lambda x: x.get(metric, 0), reverse=True)
-        rankings_by_metric[metric] = [p["arxiv_id"] for p in sorted_papers]
-
-    return {
-        "comparisons": comparison_table,
-        "rankings_by_metric": rankings_by_metric,
-        "winner_by_metric": {
-            metric: rankings[0] for metric, rankings in rankings_by_metric.items()
-        },
-    }
 
 
 def find_most_influential_papers(
@@ -405,7 +388,7 @@ def find_most_influential_papers(
             params["min_year"] = min_year
 
         query += """
-            RETURN p.arxiv_id as arxiv_id,
+            RETURN coalesce(p.arxiv_id, p.s2_id) as paper_id,
                    p.title as title,
                    p.year as year,
                    p.pagerank_score as pagerank,
@@ -421,7 +404,7 @@ def find_most_influential_papers(
         for record in result:
             papers.append(
                 {
-                    "arxiv_id": record["arxiv_id"],
+                    "paper_id": record["paper_id"],
                     "title": record["title"],
                     "year": record["year"],
                     "influence_scores": {
@@ -437,5 +420,4 @@ def find_most_influential_papers(
 def register(mcp):
     """Register influence tools with the FastMCP instance."""
     mcp.tool()(compute_paper_influence)
-    mcp.tool()(compare_paper_influence)
     mcp.tool()(find_most_influential_papers)

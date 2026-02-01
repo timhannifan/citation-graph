@@ -41,6 +41,8 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: password123
       PYTHONPATH: /app/code
+      SEMANTIC_SCHOLAR_API_KEY: ${SEMANTIC_SCHOLAR_API_KEY:-}
+      SEMANTIC_SCHOLAR_DELAY_SECONDS: ${SEMANTIC_SCHOLAR_DELAY_SECONDS:-2}
     command: ["python", "-u", "/app/code/server.py"]
     depends_on:
       neo4j:

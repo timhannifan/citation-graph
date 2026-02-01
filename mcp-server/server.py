@@ -9,6 +9,7 @@ from fastmcp import FastMCP
 from tools.arxiv import register as register_arxiv
 from tools.graph import register as register_graph
 from tools.influence import register as register_influence
+from tools.semantic_scholar import register as register_semantic_scholar
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,6 +24,7 @@ mcp = FastMCP("openwebui-tools")
 register_arxiv(mcp)
 register_graph(mcp)
 register_influence(mcp)
+register_semantic_scholar(mcp)
 
 if __name__ == "__main__":
     host = os.getenv("MCP_SERVER_HOST", "0.0.0.0")

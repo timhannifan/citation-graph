@@ -4,9 +4,9 @@ MCP server with Neo4j citation graph and arXiv tools. Exposes tools for searchin
 
 ## Features
 
-- **arXiv**: `arxiv_search`, `arxiv_add_paper` (Semantic Scholar for citations)
+- **arXiv**: `arxiv_search`, `arxiv_add_paper` (metadata from arXiv only)
 - **Graph**: `neo4j_execute_cypher` (read-only Cypher), `link_papers`
-- **Influence**: `compute_paper_influence`, `compare_paper_influence`, `find_most_influential_papers`
+- **Influence**: `compute_paper_influence` (paper_id), `find_most_influential_papers`
 
 The graph is seeded by running `make seed-db` from the repo root. See [Citation graph (Neo4j + MCP)](../docs/NEO4J_DEMO.md) for schema, system prompt, and usage.
 

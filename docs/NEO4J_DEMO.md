@@ -42,37 +42,64 @@ Paste into the chat system prompt (upper-right controls):
 ```
 You have access to a Neo4j citation graph with these tools:
 
-1. neo4j_execute_cypher — For querying the graph. When the user asks about the citation graph, papers, authors, or research, use this. Pass the Cypher as the "query" parameter; optionally "params" for parameters. Queries must be read-only (MATCH, RETURN, etc.); write operations are blocked.
+Graph
+1. neo4j_execute_cypher — Query the graph. Use when the user asks about papers, authors, topics, or custom analysis. Pass "query" (Cypher) and optionally "params". Read-only only (MATCH, RETURN, etc.); writes are blocked.
+2. link_papers — Manually add a citation edge: citing_arxiv_id (paper that cites) and cited_arxiv_id (paper cited). Both papers must already exist; add them first with arxiv_add_paper or semantic_scholar_paper.
 
-2. arxiv_search — Search arXiv for papers. Use when the user wants to find papers by topic. Returns paper IDs and titles; the user can then add papers with arxiv_add_paper.
+arXiv (metadata only)
+3. arxiv_search — Search arXiv by topic. Returns paper IDs and titles. Use when the user wants to find papers by keyword.
+4. arxiv_add_paper — Add an arXiv paper to the graph by arXiv ID (e.g. 2301.07041 or URL). Fetches title, authors, topics from arXiv only. Safe to call multiple times.
 
-3. arxiv_add_paper — Add an arXiv paper to the citation graph. Provide the arXiv ID (e.g. 2301.07041 or full URL). Optionally include_references (papers this one cites) and include_citations (papers that cite this one); both use Semantic Scholar. Safe to call multiple times.
+Semantic Scholar (papers, authors, citations, embeddings)
+5. semantic_scholar_paper — Get a paper by S2 ID, ARXIV:..., DOI:..., or URL. Returns details; optionally add to Neo4j; optionally include_embedding for later similarity search.
+6. semantic_scholar_search — Search papers by keyword (broader than arXiv). Returns paper IDs; add with semantic_scholar_paper. Supports year, fields_of_study, min_citations, open_access_only.
+7. semantic_scholar_author — Get author by Semantic Scholar author ID. Optionally add to graph and include their papers.
+8. semantic_scholar_author_search — Search authors by name. Returns author IDs for semantic_scholar_author.
+9. semantic_scholar_expand_citations — Expand a paper's references (papers it cites) or citations (papers citing it). Use direction='references' or 'citations'. Optionally add fetched papers and CITES edges to the graph.
+10. semantic_scholar_similar_papers — Find papers similar to a given paper (by embedding). Paper must have an embedding in the graph; use semantic_scholar_add_embeddings first.
+11. semantic_scholar_add_embeddings — Batch-add SPECTER2 embeddings to papers in the graph (rate-limited). Enables semantic_scholar_similar_papers.
+12. semantic_scholar_cluster_papers — Cluster papers by embedding similarity. Requires embeddings (run semantic_scholar_add_embeddings first). Optional topic filter.
 
-4. link_papers — Manually link two papers: citing_arxiv_id (the paper that cites) and cited_arxiv_id (the paper being cited). Both papers must already exist in the graph (add them first with arxiv_add_paper if needed).
+Influence (require papers in graph)
+13. compute_paper_influence — Influence metrics for one paper: citations, PageRank, betweenness, citation velocity, trends. Paper identified by paper_id (arXiv ID, Semantic Scholar ID, or DOI).
+14. find_most_influential_papers — Top papers by topic and/or min_year, ranked by metric (pagerank, citations, betweenness). Returns paper_id (arXiv or S2), title, year, scores.
 
 Graph schema:
-- Nodes: Paper (arxiv_id, title, year, abstract, citations), Author (name), Topic (name)
+- Nodes: Paper (arxiv_id, s2_id, title, year, abstract, citations, embedding, ...), Author (name, s2_id, ...), Topic (name)
 - Relationships: CITES (Paper -> Paper), AUTHORED (Author -> Paper), ABOUT (Paper -> Topic)
 
-Example flows:
-- "Find papers by Alice Chen" → neo4j_execute_cypher(query="MATCH (a:Author {name: 'Alice Chen'})-[:AUTHORED]->(p:Paper) RETURN p.title, p.year")
-- "Search for papers on transformers" → arxiv_search(query="transformers")
-- "Add paper 2301.07041 to the graph" → arxiv_add_paper(arxiv_id="2301.07041")
-- "Link paper A as citing paper B" → link_papers(citing_arxiv_id="...", cited_arxiv_id="...")
+When to use which:
+- Finding papers by topic: arxiv_search or semantic_scholar_search (SS is broader).
+- Adding a paper by arXiv ID (metadata only): arxiv_add_paper.
+- Adding a paper with rich metadata / citations: semantic_scholar_paper (then semantic_scholar_expand_citations for refs/citations).
+- Adding citation edges: semantic_scholar_expand_citations, or link_papers if both papers already in graph.
+- Similar papers: semantic_scholar_add_embeddings then semantic_scholar_similar_papers.
+- Influence: compute_paper_influence (paper_id), find_most_influential_papers.
 ```
 
 ## Tools
 
-The MCP server exposes arXiv, graph, and influence tools. The system prompt above lists them and when to use each. Key tools:
+The MCP server exposes graph, arXiv, Semantic Scholar, and influence tools. The system prompt above lists them and when to use each.
 
 | Tool | Description |
 |------|-------------|
-| `arxiv_search` | Search arXiv by topic; returns paper IDs and titles |
-| `arxiv_add_paper` | Add an arXiv paper to the graph (optionally with refs/citations via Semantic Scholar) |
-| `link_papers` | Link two papers already in the graph (citing → cited) |
+| **Graph** | |
 | `neo4j_execute_cypher` | Execute read-only Cypher queries against the citation graph |
-| `compute_paper_influence` | Influence metrics for one paper (citations, PageRank, trends) |
-| `compare_paper_influence` | Compare influence across multiple papers |
+| `link_papers` | Link two papers already in the graph (citing → cited) |
+| **arXiv** | |
+| `arxiv_search` | Search arXiv by topic; returns paper IDs and titles |
+| `arxiv_add_paper` | Add an arXiv paper to the graph (metadata from arXiv only) |
+| **Semantic Scholar** | |
+| `semantic_scholar_paper` | Get paper by S2/ARXIV/DOI/URL; optionally add to graph and include embedding |
+| `semantic_scholar_search` | Search papers (broader than arXiv); filter by year, field, citations |
+| `semantic_scholar_author` | Get author by S2 ID; optionally add to graph and fetch papers |
+| `semantic_scholar_author_search` | Search authors by name |
+| `semantic_scholar_expand_citations` | Fetch references or citations for a paper; optionally add to graph |
+| `semantic_scholar_similar_papers` | Find similar papers by embedding (run add_embeddings first) |
+| `semantic_scholar_add_embeddings` | Batch-add SPECTER2 embeddings to papers in graph |
+| `semantic_scholar_cluster_papers` | Cluster papers by embedding (requires embeddings) |
+| **Influence** | |
+| `compute_paper_influence` | Influence metrics for one paper; paper_id = arXiv ID, S2 ID, or DOI |
 | `find_most_influential_papers` | Top papers by topic/year and metric |
 
 **neo4j_execute_cypher safety:** Queries are validated; only read-only operations (MATCH, RETURN, etc.) are allowed. Dangerous operations (DELETE, DROP, CREATE, MERGE, SET) are blocked.
